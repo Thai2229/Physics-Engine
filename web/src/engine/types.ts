@@ -61,6 +61,8 @@ export interface WorldStats {
 
 export interface PhysicsWorld {
   setGravity(x: number, y: number): void;
+  /** Fastest a hand-dragged body may move (m/s). */
+  setMouseMaxSpeed(speed: number): void;
   addBody(def: BodyDef): number;
   removeBody(id: number): void;
   setBodyTransform(id: number, x: number, y: number, angle: number): void;

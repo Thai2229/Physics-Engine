@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { EngineHandle } from '../engine/loadEngine';
+import { handMaxForce, handMaxSpeed } from '../engine/hand';
 import { bodyMass } from '../engine/types';
 import type { PhysicsWorld } from '../engine/types';
 import { clampFrameDt, panBy, screenToWorld, zoomAt } from '../render/camera';
@@ -14,9 +15,6 @@ import type { Telemetry } from '../render/telemetry';
 import type { SceneBuild } from '../scenes/types';
 
 const MAX_TRAIL_POINTS = 400;
-/** The hand can accelerate a grabbed body by at most this much (m/s^2), whatever it weighs. */
-const MOUSE_MAX_ACCEL = 60;
-const MOUSE_MIN_MASS = 0.05;
 
 export interface ViewportProps {
   handle: EngineHandle;
@@ -30,6 +28,7 @@ export interface ViewportProps {
   cameraKey: string;
   gravity: number;
   timeScale: number;
+  handStrength: number;
   playing: boolean;
   resetNonce: number;
   stepNonce: number;
@@ -66,6 +65,7 @@ export function Viewport(props: ViewportProps) {
     const p = latest.current;
     const world = p.handle.createWorld();
     world.setGravity(0, -p.gravity);
+    world.setMouseMaxSpeed(handMaxSpeed(p.handStrength));
     const build = p.build(world);
     sim.current = { world, build, trail: [] };
     drag.current = null;
@@ -86,6 +86,10 @@ export function Viewport(props: ViewportProps) {
   useEffect(() => {
     sim.current?.world.setGravity(0, -props.gravity);
   }, [props.gravity, props.buildKey, props.resetNonce]);
+
+  useEffect(() => {
+    sim.current?.world.setMouseMaxSpeed(handMaxSpeed(props.handStrength));
+  }, [props.handStrength, props.buildKey, props.resetNonce]);
 
   useEffect(() => {
     const s = sim.current;
@@ -213,7 +217,7 @@ export function Viewport(props: ViewportProps) {
       const sn = Math.sin(st[idx * 3 + 2]);
       drag.current = {
         mode: 'mouse',
-        jointId: s.world.createMouseJoint(id, w.x, w.y, Math.max(bodyMass(def), MOUSE_MIN_MASS) * MOUSE_MAX_ACCEL),
+        jointId: s.world.createMouseJoint(id, w.x, w.y, handMaxForce(bodyMass(def), latest.current.handStrength)),
         bodyId: id,
         localX: c * dx + sn * dy,
         localY: -sn * dx + c * dy,

@@ -17,6 +17,7 @@ export interface SceneState {
   tab: TabId;
   gravity: number;
   timeScale: number;
+  handStrength: number;
   links: LinkParams[];
 }
 
@@ -32,6 +33,7 @@ export const LIMITS = {
   maxTorque: { min: 0, max: 500 },
   gravity: { min: 0, max: 30 },
   timeScale: { min: 0.1, max: 2 },
+  handStrength: { min: 0.25, max: 4 },
 } as const;
 
 export function defaultLink(): LinkParams {
@@ -53,6 +55,7 @@ export function defaultState(): SceneState {
     tab: 'arm',
     gravity: 9.81,
     timeScale: 1,
+    handStrength: 1,
     links: [
       { ...defaultLink(), length: 1.4 },
       { ...defaultLink(), length: 1.1 },
@@ -121,6 +124,7 @@ export function sanitizeState(raw: unknown): SceneState {
     tab,
     gravity: num(raw.gravity, LIMITS.gravity.min, LIMITS.gravity.max, d.gravity),
     timeScale: num(raw.timeScale, LIMITS.timeScale.min, LIMITS.timeScale.max, d.timeScale),
+    handStrength: num(raw.handStrength, LIMITS.handStrength.min, LIMITS.handStrength.max, d.handStrength),
     links,
   };
 }
