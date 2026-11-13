@@ -7,14 +7,14 @@ function doublePendulum(world: PhysicsWorld): SceneBuild {
   const b = new SceneBuilder(world);
   const L = 1.5;
   const pivotY = 3;
-  const pin = b.body(defaultBodyDef({ type: 'static', x: 0, y: pivotY, shape: { kind: 'circle', radius: 0.08 } }));
+  const pin = b.body(defaultBodyDef({ type: 'static', x: 0, y: pivotY, shape: { kind: 'circle', radius: 0.08 }, collisionGroup: -1 }));
   const a1 = 2.2; // initial angle of bar 1 from +x axis (radians)
   const a2 = 2.9;
   const x1 = (L / 2) * Math.cos(a1);
   const y1 = pivotY + (L / 2) * Math.sin(a1);
   const jx = L * Math.cos(a1);
   const jy = pivotY + L * Math.sin(a1);
-  const bar1 = b.body(defaultBodyDef({ x: x1, y: y1, angle: a1, shape: { kind: 'box', w: L, h: 0.1 }, collisionGroup: -1 }));
+  const bar1 = b.body(defaultBodyDef({ x: x1, y: y1, angle: a1, shape: { kind: 'box', w: L, h: 0.1 }, collisionGroup: -1, linearDamping: 0.1, angularDamping: 0.05 }));
   const bar2 = b.body(
     defaultBodyDef({
       x: jx + (L / 2) * Math.cos(a2),
@@ -22,6 +22,8 @@ function doublePendulum(world: PhysicsWorld): SceneBuild {
       angle: a2,
       shape: { kind: 'box', w: L, h: 0.1 },
       collisionGroup: -1,
+      linearDamping: 0.1,
+      angularDamping: 0.05,
     }),
   );
   b.revoluteIds.push(world.addRevoluteJoint(defaultRevoluteDef({ bodyA: pin, bodyB: bar1, anchorX: 0, anchorY: pivotY })));
