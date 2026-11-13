@@ -16,6 +16,7 @@ endif()
 add_library(physics STATIC
   src/shape.cpp
   src/body.cpp
+  src/collision.cpp
   src/joint.cpp
   src/world.cpp
 )
