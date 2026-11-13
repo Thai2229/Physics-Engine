@@ -42,6 +42,7 @@ export function buildArm(world: PhysicsWorld, links: LinkParams[]): SceneBuild {
         y: ARM_PIVOT_Y,
         shape: { kind: 'box', w: link.length, h: link.width },
         density: link.density,
+        linearDamping: 0.1,
         angularDamping: 0.05,
         collisionGroup: -1,
       }),

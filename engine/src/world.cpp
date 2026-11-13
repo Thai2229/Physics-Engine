@@ -154,6 +154,14 @@ bool World::setMouseTarget(JointId id, Vec2 target) {
 
 namespace {
 
+Vec2 clampLength(Vec2 v, real maxLength) {
+  real length = v.length();
+  if (length > maxLength && length > 0.0) {
+    return (maxLength / length) * v;
+  }
+  return v;
+}
+
 bool shouldCollide(const Filter& a, const Filter& b) {
   if (a.group == b.group && a.group != 0) {
     return a.group > 0;
@@ -286,11 +294,20 @@ void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
     }
   }
 
-  // 3. integrate positions
+  // 3. cap speeds (dissipative safety net), tighter for hand-dragged bodies, then integrate positions
+  joints_.forEach([&](JointId, Joint& j) {
+    if (j.type() == JointType::Mouse) {
+      RigidBody* held = j.bodyB();
+      held->setLinearVelocity(clampLength(held->linearVelocity(), mouseMaxSpeed_));
+      held->setAngularVelocity(clamp(held->angularVelocity(), -mouseMaxSpeed_, mouseMaxSpeed_));
+    }
+  });
   bodies_.forEach([&](BodyId, RigidBody& b) {
     if (b.type() == BodyType::Static) {
       return;
     }
+    b.setLinearVelocity(clampLength(b.linearVelocity(), maxLinearSpeed_));
+    b.setAngularVelocity(clamp(b.angularVelocity(), -maxAngularSpeed_, maxAngularSpeed_));
     b.setCenterAndAngle(b.center() + dt * b.linearVelocity(), b.angle() + dt * b.angularVelocity());
   });
 

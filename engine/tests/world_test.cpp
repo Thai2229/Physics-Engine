@@ -309,3 +309,29 @@ TEST(World, ManyBodiesStayFinite) {
   EXPECT_EQ(w.bodyStates().size(), 30000u);
   EXPECT_TRUE(std::isfinite(w.bodyStates()[1]));
 }
+
+TEST(WorldSpeedLimits, LinearAndAngularSpeedAreCapped) {
+  World w(Vec2(0, 0));
+  BodyDef def;
+  def.linearVelocity = Vec2(1.0e4, 0);
+  def.angularVelocity = 1.0e4;
+  BodyId id = w.createBody(def);
+  Fixture f;
+  f.shape = Shape::circle(0.5);
+  w.addShape(id, f);
+  w.step(1.0 / 120.0, 8, 3);
+  EXPECT_LE(w.body(id)->linearVelocity().length(), w.maxLinearSpeed() + 1e-9);
+  EXPECT_LE(std::abs(w.body(id)->angularVelocity()), w.maxAngularSpeed() + 1e-9);
+}
+
+TEST(WorldSpeedLimits, NormalSpeedsAreUntouched) {
+  World w(Vec2(0, -9.81));
+  BodyDef def;
+  def.linearVelocity = Vec2(3.0, 0);
+  BodyId id = w.createBody(def);
+  Fixture f;
+  f.shape = Shape::circle(0.5);
+  w.addShape(id, f);
+  w.step(1.0 / 120.0, 8, 3);
+  EXPECT_NEAR(w.body(id)->linearVelocity().x, 3.0, 1e-9);
+}

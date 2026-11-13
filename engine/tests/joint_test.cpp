@@ -391,6 +391,20 @@ TEST(MouseJoint, DragsBodyToTarget) {
   EXPECT_NEAR(w.body(body)->position().y, 2.0, 0.1);  // small sag from gravity on a soft spring
 }
 
+TEST(MouseJoint, HandSpeedIsCappedSoDraggingCannotInjectHugeEnergy) {
+  World w(Vec2(0, 0));
+  BodyId body = addBox(w, Vec2(0, 0), 0.5, 0.5);
+  JointId id = w.createMouseJoint(body, Vec2(0, 0), 1.0e6);
+  ASSERT_TRUE(id.isValid());
+  w.setMouseTarget(id, Vec2(500, 0));
+  real fastest = 0;
+  for (int i = 0; i < 120 * 3; ++i) {
+    w.step(kDt, 8, 3);
+    fastest = maxReal(fastest, w.body(body)->linearVelocity().length());
+  }
+  EXPECT_LE(fastest, w.mouseMaxSpeed() + 1e-9);
+}
+
 TEST(MouseJoint, GrabPointOffCentreProducesRotation) {
   World w(Vec2(0, 0));
   BodyId body = addBox(w, Vec2(0, 0), 2, 2);

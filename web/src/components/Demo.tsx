@@ -144,8 +144,6 @@ export function Demo() {
             }}
           />
         )}
-        {gallery && <p className="note">{gallery.description}</p>}
-        <p className="note">Drag bodies with the mouse. Drag empty space to pan, scroll to zoom. The URL hash holds the scene.</p>
       </aside>
       <main className="main">
         <nav className="tabs">

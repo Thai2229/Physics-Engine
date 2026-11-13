@@ -40,7 +40,7 @@ function bridge(world: PhysicsWorld): SceneBuild {
   let prev = left;
   for (let i = 0; i < planks; i++) {
     const x = -span / 2 + pw * (i + 0.5);
-    const id = b.body(defaultBodyDef({ x, y, shape: { kind: 'box', w: pw * 0.96, h: 0.16 }, collisionGroup: -1, angularDamping: 0.1 }));
+    const id = b.body(defaultBodyDef({ x, y, shape: { kind: 'box', w: pw * 0.96, h: 0.16 }, collisionGroup: -1, angularDamping: 0.1, linearDamping: 0.2 }));
     b.revoluteIds.push(
       world.addRevoluteJoint(defaultRevoluteDef({ bodyA: prev, bodyB: id, anchorX: x - pw / 2, anchorY: y })),
     );
@@ -56,9 +56,11 @@ function cradle(world: PhysicsWorld): SceneBuild {
   const r = 0.5;
   const len = 3;
   const top = 4.5;
+  // Real cradles leave a hair of space between balls; exactly touching balls make the contact solver inject energy.
+  const gap = 0.02;
   const bar = b.body(defaultBodyDef({ type: 'static', x: 0, y: top, shape: { kind: 'box', w: n * 2 * r + 1, h: 0.15 } }));
   for (let i = 0; i < n; i++) {
-    const px = (i - (n - 1) / 2) * 2 * r;
+    const px = (i - (n - 1) / 2) * (2 * r + gap);
     let x = px;
     let y = top - len;
     if (i === 0) {
@@ -67,7 +69,7 @@ function cradle(world: PhysicsWorld): SceneBuild {
       y = top - len * Math.cos(swing);
     }
     const id = b.body(
-      defaultBodyDef({ x, y, shape: { kind: 'circle', radius: r }, restitution: 1, friction: 0, collisionGroup: 0 }),
+      defaultBodyDef({ x, y, shape: { kind: 'circle', radius: r }, restitution: 1, friction: 0, collisionGroup: 0, linearDamping: 0.15 }),
     );
     world.addDistanceJoint({
       bodyA: bar,

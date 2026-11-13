@@ -24,6 +24,8 @@ export interface DrawArgs {
   trail: number[];
   /** Sim time advanced since last draw; 0 while paused (velocity overlay keeps last values). */
   simDt: number;
+  /** Active mouse drag: grabbed point on the body to the cursor, in world coordinates. */
+  dragLine?: { ax: number; ay: number; bx: number; by: number };
 }
 
 const FILL: Record<BodyDef['type'], string> = {
@@ -79,6 +81,30 @@ export class Renderer {
     if (args.overlays.contacts) {
       this.drawContacts(args);
     }
+    this.drawDragLine(args);
+  }
+
+  private drawDragLine(args: DrawArgs): void {
+    const { ctx, vp } = this;
+    const d = args.dragLine;
+    if (!d) {
+      return;
+    }
+    const p = worldToScreen(args.camera, vp, d.ax, d.ay);
+    const q = worldToScreen(args.camera, vp, d.bx, d.by);
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(q.x, q.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(q.x, q.y, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawGrid(cam: Camera): void {

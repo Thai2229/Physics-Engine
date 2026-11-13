@@ -84,6 +84,27 @@ export interface PhysicsWorld {
   destroy(): void;
 }
 
+/** Mass in kg of a body definition (area x density); used to scale the force of the hand. */
+export function bodyMass(def: BodyDef): number {
+  const shape = def.shape;
+  let area = 0;
+  if (shape.kind === 'circle') {
+    area = Math.PI * shape.radius * shape.radius;
+  } else if (shape.kind === 'box') {
+    area = shape.w * shape.h;
+  } else {
+    const v = shape.vertices;
+    let twice = 0;
+    for (let i = 0; i < v.length; i++) {
+      const a = v[i];
+      const b = v[(i + 1) % v.length];
+      twice += a.x * b.y - b.x * a.y;
+    }
+    area = Math.abs(twice) / 2;
+  }
+  return area * def.density;
+}
+
 export function defaultBodyDef(partial: Partial<BodyDef> & Pick<BodyDef, 'shape'>): BodyDef {
   return {
     type: 'dynamic',

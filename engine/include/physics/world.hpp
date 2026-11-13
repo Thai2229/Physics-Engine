@@ -61,6 +61,14 @@ class World {
   int positionIterations() const { return positionIterations_; }
   void setVelocityIterations(int n) { velocityIterations_ = n; }
   void setPositionIterations(int n) { positionIterations_ = n; }
+  /// Safety caps that keep a runaway body from flying off or destabilising joints.
+  real maxLinearSpeed() const { return maxLinearSpeed_; }
+  void setMaxLinearSpeed(real v) { maxLinearSpeed_ = v; }
+  real maxAngularSpeed() const { return maxAngularSpeed_; }
+  void setMaxAngularSpeed(real w) { maxAngularSpeed_ = w; }
+  /// A hand-dragged body (mouse joint) cannot move faster than this, so dragging adds only a human amount of energy.
+  real mouseMaxSpeed() const { return mouseMaxSpeed_; }
+  void setMouseMaxSpeed(real v) { mouseMaxSpeed_ = v; }
   bool warmStarting() const { return warmStarting_; }
   void setWarmStarting(bool enabled) { warmStarting_ = enabled; }
 
@@ -106,6 +114,9 @@ class World {
   real maxFrameTime_ = 0.1;
   real accumulator_ = 0;
   real lastDt_ = 0;
+  real maxLinearSpeed_ = 25.0;
+  real maxAngularSpeed_ = 30.0;
+  real mouseMaxSpeed_ = 5.0;
   int velocityIterations_ = 8;
   int positionIterations_ = 3;
   bool warmStarting_ = true;

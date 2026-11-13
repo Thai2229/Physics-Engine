@@ -3,17 +3,20 @@
 import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { EngineHandle } from '../engine/loadEngine';
+import { bodyMass } from '../engine/types';
 import type { PhysicsWorld } from '../engine/types';
 import { clampFrameDt, panBy, screenToWorld, zoomAt } from '../render/camera';
 import type { Camera } from '../render/camera';
 import { Renderer } from '../render/renderer';
-import type { Overlays } from '../render/renderer';
+import type { DrawArgs, Overlays } from '../render/renderer';
 import { recordSample, resetTelemetry } from '../render/telemetry';
 import type { Telemetry } from '../render/telemetry';
 import type { SceneBuild } from '../scenes/types';
 
 const MAX_TRAIL_POINTS = 400;
-const MOUSE_MAX_FORCE = 1000;
+/** The hand can accelerate a grabbed body by at most this much (m/s^2), whatever it weighs. */
+const MOUSE_MAX_ACCEL = 60;
+const MOUSE_MIN_MASS = 0.05;
 
 export interface ViewportProps {
   handle: EngineHandle;
@@ -40,7 +43,9 @@ interface Sim {
   trail: number[];
 }
 
-type Drag = { mode: 'mouse'; jointId: number } | { mode: 'pan'; x: number; y: number };
+type Drag =
+  | { mode: 'mouse'; jointId: number; bodyId: number; localX: number; localY: number; targetX: number; targetY: number }
+  | { mode: 'pan'; x: number; y: number };
 
 export function Viewport(props: ViewportProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -144,7 +149,25 @@ export function Viewport(props: ViewportProps) {
         simDt = dtReal * p.timeScale;
         advance(s, simDt, p.telemetry.current);
       }
+      let dragLine: DrawArgs['dragLine'];
+      const d = drag.current;
+      if (d && d.mode === 'mouse') {
+        const ids = s.world.getBodyIds();
+        const idx = ids.indexOf(d.bodyId);
+        if (idx >= 0) {
+          const st = s.world.getBodyStates();
+          const c = Math.cos(st[idx * 3 + 2]);
+          const sn = Math.sin(st[idx * 3 + 2]);
+          dragLine = {
+            ax: st[idx * 3] + c * d.localX - sn * d.localY,
+            ay: st[idx * 3 + 1] + sn * d.localX + c * d.localY,
+            bx: d.targetX,
+            by: d.targetY,
+          };
+        }
+      }
       renderer.draw({
+        dragLine,
         world: s.world,
         shapes: s.build.shapes,
         camera: camera.current,
@@ -181,7 +204,22 @@ export function Viewport(props: ViewportProps) {
     const id = s.world.queryPoint(w.x, w.y);
     const def = s.build.shapes.get(id);
     if (id >= 0 && def && def.type === 'dynamic') {
-      drag.current = { mode: 'mouse', jointId: s.world.createMouseJoint(id, w.x, w.y, MOUSE_MAX_FORCE) };
+      const ids = s.world.getBodyIds();
+      const idx = ids.indexOf(id);
+      const st = s.world.getBodyStates();
+      const dx = w.x - st[idx * 3];
+      const dy = w.y - st[idx * 3 + 1];
+      const c = Math.cos(st[idx * 3 + 2]);
+      const sn = Math.sin(st[idx * 3 + 2]);
+      drag.current = {
+        mode: 'mouse',
+        jointId: s.world.createMouseJoint(id, w.x, w.y, Math.max(bodyMass(def), MOUSE_MIN_MASS) * MOUSE_MAX_ACCEL),
+        bodyId: id,
+        localX: c * dx + sn * dy,
+        localY: -sn * dx + c * dy,
+        targetX: w.x,
+        targetY: w.y,
+      };
     } else {
       drag.current = { mode: 'pan', x: e.clientX, y: e.clientY };
     }
@@ -196,6 +234,8 @@ export function Viewport(props: ViewportProps) {
       const w = toWorld(e);
       if (w && sim.current) {
         sim.current.world.setMouseTarget(d.jointId, w.x, w.y);
+        d.targetX = w.x;
+        d.targetY = w.y;
       }
     } else {
       camera.current = panBy(camera.current, e.clientX - d.x, e.clientY - d.y);
