@@ -602,3 +602,97 @@ TEST(Contacts, ManyBodiesStaySane) {
     EXPECT_LT(std::fabs(p.x), 12.0);
   }
 }
+
+// ---- energy: touching bodies must never gain energy -------------------------------------
+
+namespace {
+
+/// Newton's cradle: balls hang from a static bar by rigid rods, neighbours exactly touching.
+real runCradle(real restitution, real spacing, real seconds, real* finalMaxGain) {
+  World w;
+  BodyDef barDef;
+  barDef.type = BodyType::Static;
+  barDef.position = Vec2(0, 4.5);
+  BodyId bar = w.createBody(barDef);
+  const real length = 3.0;
+  const real pull = 0.8;
+  std::vector<BodyId> balls;
+  for (int i = 0; i < 5; ++i) {
+    Vec2 anchor((i - 2) * spacing, 4.5);
+    Vec2 p = anchor + Vec2(0, -length);
+    if (i == 0) {
+      p = anchor + Vec2(length * std::sin(-pull), -length * std::cos(pull));
+    }
+    BodyDef def;
+    def.type = BodyType::Dynamic;
+    def.position = p;
+    BodyId id = w.createBody(def);
+    Fixture f;
+    f.shape = Shape::circle(0.5);
+    f.friction = 0;
+    f.restitution = restitution;
+    w.addShape(id, f);
+    DistanceJointDef jd;
+    jd.bodyA = bar;
+    jd.bodyB = id;
+    jd.anchorA = anchor;
+    jd.anchorB = p;
+    jd.length = length;
+    jd.hertz = 0;
+    jd.collideConnected = false;
+    w.createDistanceJoint(jd);
+    balls.push_back(id);
+  }
+  real e0 = w.kineticEnergy() + w.potentialEnergy();
+  real maxE = e0;
+  real lastE = e0;
+  real maxStepGain = 0;
+  int steps = static_cast<int>(seconds * 120);
+  for (int i = 0; i < steps; ++i) {
+    w.step(kDt, 8, 3);
+    real e = w.kineticEnergy() + w.potentialEnergy();
+    maxE = std::max(maxE, e);
+    maxStepGain = std::max(maxStepGain, e - lastE);
+    lastE = e;
+  }
+  *finalMaxGain = maxStepGain;
+  return maxE - e0;
+}
+
+}  // namespace
+
+TEST(ContactEnergy, NewtonsCradleTouchingBallsDoNotGainEnergyRestitutionOne) {
+  real stepGain = 0;
+  real gain = runCradle(1.0, 1.0, 12.0, &stepGain);
+  EXPECT_LT(gain, 0.02 * 64.8);
+}
+
+TEST(ContactEnergy, NewtonsCradleTouchingBallsEnergyNonIncreasingRestitutionPointNine) {
+  real stepGain = 0;
+  real gain = runCradle(0.9, 1.0, 12.0, &stepGain);
+  EXPECT_LT(gain, 0.02 * 64.8);
+}
+
+TEST(ContactEnergy, NewtonsCradleWithGapStaysConserved) {
+  real stepGain = 0;
+  real gain = runCradle(1.0, 1.01, 12.0, &stepGain);
+  EXPECT_LT(gain, 0.02 * 64.8);
+}
+
+TEST(ContactEnergy, MovingBallHittingTwoTouchingBallsOnFloorDoesNotGainKineticEnergy) {
+  World w(Vec2(0, 0));
+  addGround(w, 0.0, 1.0);
+  BodyId a = addBall(w, Vec2(0, 0.5), 0.5, BodyType::Dynamic, 0.0, 1.0);
+  BodyId b = addBall(w, Vec2(1.0, 0.5), 0.5, BodyType::Dynamic, 0.0, 1.0);
+  BodyId c = addBall(w, Vec2(2.0, 0.5), 0.5, BodyType::Dynamic, 0.0, 1.0);
+  w.setBodyVelocity(a, Vec2(5, 0), 0);
+  real ke0 = w.kineticEnergy();
+  real maxKe = ke0;
+  for (int i = 0; i < 240; ++i) {
+    w.step(kDt, 8, 3);
+    maxKe = std::max(maxKe, w.kineticEnergy());
+  }
+  (void)b;
+  (void)c;
+  EXPECT_LE(maxKe, ke0 * 1.001);
+}

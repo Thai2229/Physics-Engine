@@ -1,6 +1,7 @@
 #include <physics/world.hpp>
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <map>
 #include <memory>
@@ -264,7 +265,7 @@ void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
   if (lastDt_ > 0.0) {
     ctx.dtRatio = dt / lastDt_;
   }
-  ctx.warmStarting = warmStarting_;
+  ctx.warmStarting = warmStarting_ && !getenv("NOWS");
   lastDt_ = dt;
 
   // 1. integrate velocities (semi-implicit Euler)
