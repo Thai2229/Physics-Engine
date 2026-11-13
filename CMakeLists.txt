@@ -14,3 +14,7 @@ if(PHYSICS_BUILD_TESTS)
 endif()
 
 add_subdirectory(engine)
+
+if(EMSCRIPTEN)
+  add_subdirectory(bindings)
+endif()
