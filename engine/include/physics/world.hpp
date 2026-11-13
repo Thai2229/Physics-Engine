@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "body.hpp"
+#include "contact.hpp"
 #include "handle.hpp"
 #include "joint.hpp"
 #include "math.hpp"
@@ -69,6 +70,13 @@ class World {
   real kineticEnergy() const;
   real potentialEnergy() const;
 
+  /// Topmost (most recently created) static or dynamic body with a shape containing p; invalid id if none.
+  BodyId queryPoint(Vec2 p) const;
+  /// Contact points of the last step (one per manifold point, not per body pair).
+  std::size_t contactCount() const;
+  /// Wall time of the last step() in milliseconds; after advance(), the total of its sub-steps.
+  double lastStepMs() const { return lastStepMs_; }
+
   // ---- contiguous buffers for bindings ----
   // Each call rebuilds the buffer from current state (O(n)); the returned
   // reference/data pointer is valid until the next call to the same accessor
@@ -80,13 +88,19 @@ class World {
   /// [ax, ay, bx, by] per joint (world anchors), in jointIds() order.
   const std::vector<float>& jointAnchors() const;
   const std::vector<std::int32_t>& jointIds() const;
+  /// [px, py, nx, ny] per contact point of the last step; normal points from body A to body B.
+  const std::vector<float>& contactPoints();
 
  private:
   JointId addJoint(std::unique_ptr<Joint> joint);
+  /// Rebuilds contacts_ from the current transforms, carrying accumulated impulses over by feature id.
+  void updateContacts();
+  void stepImpl(real dt, int velocityIterations, int positionIterations);
 
   Vec2 gravity_;
   SlotMap<RigidBody, BodyId> bodies_;
   SlotMap<Joint, JointId> joints_;
+  std::vector<Contact> contacts_;
 
   real fixedTimeStep_ = 1.0 / 120.0;
   real maxFrameTime_ = 0.1;
@@ -95,11 +109,13 @@ class World {
   int velocityIterations_ = 8;
   int positionIterations_ = 3;
   bool warmStarting_ = true;
+  double lastStepMs_ = 0;
 
   mutable std::vector<float> bodyStates_;
   mutable std::vector<std::int32_t> bodyIds_;
   mutable std::vector<float> jointAnchors_;
   mutable std::vector<std::int32_t> jointIds_;
+  std::vector<float> contactPoints_;
 };
 
 }  // namespace physics

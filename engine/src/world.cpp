@@ -1,6 +1,12 @@
 #include <physics/world.hpp>
 
+#include <algorithm>
+#include <chrono>
+#include <map>
 #include <memory>
+#include <set>
+#include <tuple>
+#include <utility>
 
 namespace physics {
 
@@ -26,6 +32,9 @@ bool World::destroyBody(BodyId id) {
   for (JointId jid : attached) {
     joints_.remove(jid);
   }
+  contacts_.erase(std::remove_if(contacts_.begin(), contacts_.end(),
+                                 [&](const Contact& c) { return c.bodyA() == b || c.bodyB() == b; }),
+                  contacts_.end());
   return bodies_.remove(id);
 }
 
@@ -143,10 +152,103 @@ bool World::setMouseTarget(JointId id, Vec2 target) {
 
 // ---- stepping ---------------------------------------------------------------
 
+namespace {
+
+bool shouldCollide(const Filter& a, const Filter& b) {
+  if (a.group == b.group && a.group != 0) {
+    return a.group > 0;
+  }
+  return (a.mask & b.category) != 0 && (b.mask & a.category) != 0;
+}
+
+using ContactKey = std::tuple<std::int32_t, int, std::int32_t, int>;
+
+}  // namespace
+
+void World::updateContacts() {
+  struct FixtureRef {
+    BodyId id;
+    RigidBody* body;
+    int index;
+  };
+  std::vector<FixtureRef> refs;
+  std::vector<BroadphaseEntry> entries;
+  bodies_.forEach([&](BodyId id, RigidBody& b) {
+    Transform xf(b.position(), b.rotation());
+    for (std::size_t i = 0; i < b.shapes().size(); ++i) {
+      BroadphaseEntry e;
+      e.box = computeAABB(b.shapes()[i].shape, xf);
+      e.id = static_cast<std::uint32_t>(refs.size());
+      entries.push_back(e);
+      refs.push_back(FixtureRef{id, &b, static_cast<int>(i)});
+    }
+  });
+
+  std::set<std::pair<const RigidBody*, const RigidBody*>> noCollide;
+  joints_.forEach([&](JointId, Joint& j) {
+    if (!j.collideConnected() && j.bodyA() != nullptr && j.bodyB() != nullptr) {
+      noCollide.insert(std::make_pair(j.bodyA(), j.bodyB()));
+      noCollide.insert(std::make_pair(j.bodyB(), j.bodyA()));
+    }
+  });
+
+  std::map<ContactKey, std::size_t> previous;
+  for (std::size_t i = 0; i < contacts_.size(); ++i) {
+    const Contact& c = contacts_[i];
+    previous[ContactKey(c.bodyIdA().toInt(), c.fixtureIndexA(), c.bodyIdB().toInt(), c.fixtureIndexB())] = i;
+  }
+
+  std::vector<Contact> next;
+  for (const auto& pair : findOverlappingPairs(entries)) {
+    const FixtureRef* ra = &refs[pair.first];
+    const FixtureRef* rb = &refs[pair.second];
+    if (ra->body == rb->body || (ra->body->type() != BodyType::Dynamic && rb->body->type() != BodyType::Dynamic) ||
+        !shouldCollide(ra->body->shapes()[static_cast<std::size_t>(ra->index)].filter,
+                       rb->body->shapes()[static_cast<std::size_t>(rb->index)].filter) ||
+        noCollide.count(std::make_pair(ra->body, rb->body)) > 0) {
+      continue;
+    }
+    // Polygon-vs-circle pairs are always evaluated with the polygon as A.
+    if (ra->body->shapes()[static_cast<std::size_t>(ra->index)].shape.type() == ShapeType::Circle &&
+        rb->body->shapes()[static_cast<std::size_t>(rb->index)].shape.type() == ShapeType::Polygon) {
+      std::swap(ra, rb);
+    }
+    Contact c(ra->id, ra->body, ra->index, rb->id, rb->body, rb->index);
+    c.manifold() = collide(c.fixtureA().shape, Transform(ra->body->position(), ra->body->rotation()),
+                           c.fixtureB().shape, Transform(rb->body->position(), rb->body->rotation()));
+    if (c.manifold().pointCount == 0) {
+      continue;
+    }
+    auto it = previous.find(ContactKey(ra->id.toInt(), ra->index, rb->id.toInt(), rb->index));
+    if (it != previous.end()) {
+      const Manifold& old = contacts_[it->second].manifold();
+      for (int i = 0; i < c.manifold().pointCount; ++i) {
+        for (int j = 0; j < old.pointCount; ++j) {
+          if (old.points[j].id == c.manifold().points[i].id) {
+            c.manifold().points[i].normalImpulse = old.points[j].normalImpulse;
+            c.manifold().points[i].tangentImpulse = old.points[j].tangentImpulse;
+            break;
+          }
+        }
+      }
+    }
+    next.push_back(c);
+  }
+  contacts_ = std::move(next);
+}
+
 void World::step(real dt, int velocityIterations, int positionIterations) {
   if (!(dt > 0.0)) {
     return;
   }
+  auto start = std::chrono::steady_clock::now();
+  stepImpl(dt, velocityIterations, positionIterations);
+  std::chrono::duration<double, std::milli> elapsed = std::chrono::steady_clock::now() - start;
+  lastStepMs_ = elapsed.count();
+}
+
+void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
+  updateContacts();
   StepContext ctx;
   ctx.dt = dt;
   ctx.invDt = 1.0 / dt;
@@ -174,8 +276,14 @@ void World::step(real dt, int velocityIterations, int positionIterations) {
 
   // 2. constraints: init (+ warm start) and iterate velocities
   joints_.forEach([&](JointId, Joint& j) { j.initVelocityConstraints(ctx); });
+  for (Contact& c : contacts_) {
+    c.initVelocityConstraints(ctx);
+  }
   for (int i = 0; i < velocityIterations; ++i) {
     joints_.forEach([&](JointId, Joint& j) { j.solveVelocityConstraints(ctx); });
+    for (Contact& c : contacts_) {
+      c.solveVelocityConstraints();
+    }
   }
 
   // 3. integrate positions
@@ -189,6 +297,13 @@ void World::step(real dt, int velocityIterations, int positionIterations) {
   // 4. position correction
   for (int i = 0; i < positionIterations; ++i) {
     bool allSolved = true;
+    real minSeparation = 0;
+    for (Contact& c : contacts_) {
+      minSeparation = minReal(minSeparation, c.solvePositionConstraints());
+    }
+    if (minSeparation < -3.0 * kLinearSlop) {
+      allSolved = false;
+    }
     joints_.forEach([&](JointId, Joint& j) {
       if (!j.solvePositionConstraints()) {
         allSolved = false;
@@ -212,14 +327,71 @@ int World::advance(real frameDt) {
   }
   accumulator_ += minReal(frameDt, maxFrameTime_);
   int steps = 0;
+  double totalMs = 0;
   // The tolerance absorbs floating-point drift when frame times divide the step evenly.
   while (accumulator_ + 1e-9 >= fixedTimeStep_) {
     step(fixedTimeStep_, velocityIterations_, positionIterations_);
     accumulator_ -= fixedTimeStep_;
+    totalMs += lastStepMs_;
     ++steps;
+  }
+  if (steps > 0) {
+    lastStepMs_ = totalMs;
   }
   accumulator_ = maxReal(accumulator_, 0.0);
   return steps;
+}
+
+BodyId World::queryPoint(Vec2 p) const {
+  BodyId found;
+  bodies_.forEach([&](BodyId id, const RigidBody& b) {
+    if (b.type() == BodyType::Kinematic) {
+      return;
+    }
+    Vec2 local = b.worldToLocal(p);
+    for (const Fixture& f : b.shapes()) {
+      const Shape& s = f.shape;
+      bool inside = true;
+      if (s.type() == ShapeType::Circle) {
+        inside = (local - s.center()).lengthSquared() <= s.radius() * s.radius();
+      } else {
+        for (int i = 0; i < s.vertexCount(); ++i) {
+          if (dot(s.normal(i), local - s.vertex(i)) > 0.0) {
+            inside = false;
+            break;
+          }
+        }
+      }
+      if (inside) {
+        found = id;
+        return;
+      }
+    }
+  });
+  return found;
+}
+
+std::size_t World::contactCount() const {
+  std::size_t n = 0;
+  for (const Contact& c : contacts_) {
+    n += static_cast<std::size_t>(c.manifold().pointCount);
+  }
+  return n;
+}
+
+const std::vector<float>& World::contactPoints() {
+  contactPoints_.clear();
+  contactPoints_.reserve(contactCount() * 4);
+  for (const Contact& c : contacts_) {
+    WorldManifold wm = c.worldManifold();
+    for (int i = 0; i < c.manifold().pointCount; ++i) {
+      contactPoints_.push_back(static_cast<float>(wm.points[i].x));
+      contactPoints_.push_back(static_cast<float>(wm.points[i].y));
+      contactPoints_.push_back(static_cast<float>(wm.normal.x));
+      contactPoints_.push_back(static_cast<float>(wm.normal.y));
+    }
+  }
+  return contactPoints_;
 }
 
 // ---- stats & buffers ------------------------------------------------------------

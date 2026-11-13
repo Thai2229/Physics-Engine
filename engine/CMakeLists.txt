@@ -17,6 +17,7 @@ add_library(physics STATIC
   src/shape.cpp
   src/body.cpp
   src/collision.cpp
+  src/contact.cpp
   src/joint.cpp
   src/world.cpp
 )
