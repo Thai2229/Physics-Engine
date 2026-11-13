@@ -1,4 +1,4 @@
-import { defaultBodyDef, defaultRevoluteDef } from '../engine/types';
+import { bodyMass, defaultBodyDef, defaultRevoluteDef } from '../engine/types';
 import type { PhysicsWorld } from '../engine/types';
 import type { LinkParams } from './sceneState';
 import { SceneBuilder } from './types';
@@ -35,18 +35,19 @@ export function buildArm(world: PhysicsWorld, links: LinkParams[]): SceneBuild {
   );
   let prev = base;
   let px = 0;
+  let restHeightMass = 0;
   for (const link of links) {
-    const id = b.body(
-      defaultBodyDef({
-        x: px + link.length / 2,
-        y: ARM_PIVOT_Y,
-        shape: { kind: 'box', w: link.length, h: link.width },
-        density: link.density,
-        linearDamping: 0.1,
-        angularDamping: 0.05,
-        collisionGroup: -1,
-      }),
-    );
+    const def = defaultBodyDef({
+      x: px + link.length / 2,
+      y: ARM_PIVOT_Y,
+      shape: { kind: 'box', w: link.length, h: link.width },
+      density: link.density,
+      linearDamping: 0.1,
+      angularDamping: 0.05,
+      collisionGroup: -1,
+    });
+    const id = b.body(def);
+    restHeightMass += bodyMass(def) * (ARM_PIVOT_Y - px - link.length / 2);
     const jid = world.addRevoluteJoint(
       defaultRevoluteDef({ bodyA: prev, bodyB: id, anchorX: px, anchorY: ARM_PIVOT_Y, ...jointPatch(link) }),
     );
@@ -54,7 +55,7 @@ export function buildArm(world: PhysicsWorld, links: LinkParams[]): SceneBuild {
     prev = id;
     px += link.length;
   }
-  return b.finish({ x: 0, y: 0.5, scale: 55 });
+  return b.finish({ x: 0, y: 0.5, scale: 55 }, undefined, restHeightMass);
 }
 
 export function applyArmJoints(world: PhysicsWorld, build: SceneBuild, links: LinkParams[]): void {

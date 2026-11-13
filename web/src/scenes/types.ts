@@ -9,6 +9,11 @@ export interface SceneBuild {
   camera: Camera;
   /** Draws a trail of a body-local point. */
   trail?: { bodyId: number; localX: number; localY: number };
+  /**
+   * Sum of mass x height (kg*m) with every body hanging at rest. Times gravity it is the potential energy
+   * the scene can never lose, which the energy chart subtracts so a fully damped scene reads zero.
+   */
+  restHeightMass?: number;
 }
 
 export class SceneBuilder {
@@ -23,8 +28,8 @@ export class SceneBuilder {
     return id;
   }
 
-  finish(camera: Camera, trail?: SceneBuild['trail']): SceneBuild {
-    return { shapes: this.shapes, revoluteIds: this.revoluteIds, camera, trail };
+  finish(camera: Camera, trail?: SceneBuild['trail'], restHeightMass?: number): SceneBuild {
+    return { shapes: this.shapes, revoluteIds: this.revoluteIds, camera, trail, restHeightMass };
   }
 }
 

@@ -29,8 +29,11 @@ export function resetTelemetry(t: Telemetry): void {
   t.samples.length = 0;
 }
 
-/** Records a sample if SAMPLE_INTERVAL of sim time has elapsed since the last one. */
-export function recordSample(t: Telemetry, stats: WorldStats): void {
+/**
+ * Records a sample if SAMPLE_INTERVAL of sim time has elapsed since the last one.
+ * restPotential (J) is subtracted from the potential energy, so energy is measured above the rest pose.
+ */
+export function recordSample(t: Telemetry, stats: WorldStats, restPotential = 0): void {
   t.stats = stats;
   const last = t.samples[t.samples.length - 1];
   if (last && t.simTime - last.t < SAMPLE_INTERVAL) {
@@ -39,8 +42,8 @@ export function recordSample(t: Telemetry, stats: WorldStats): void {
   t.samples.push({
     t: t.simTime,
     kinetic: stats.kineticEnergy,
-    potential: stats.potentialEnergy,
-    total: stats.kineticEnergy + stats.potentialEnergy,
+    potential: stats.potentialEnergy - restPotential,
+    total: stats.kineticEnergy + stats.potentialEnergy - restPotential,
   });
   if (t.samples.length > MAX_SAMPLES) {
     t.samples.shift();

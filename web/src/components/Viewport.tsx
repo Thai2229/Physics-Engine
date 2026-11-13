@@ -76,7 +76,7 @@ export function Viewport(props: ViewportProps) {
       cameraKeyRef.current = p.cameraKey;
       resetRef.current = p.resetNonce;
     }
-    recordSample(p.telemetry.current, world.getStats());
+    recordSample(p.telemetry.current, world.getStats(), restPotential(build, p.gravity));
     return () => {
       sim.current = null;
       world.destroy();
@@ -106,7 +106,7 @@ export function Viewport(props: ViewportProps) {
     }
     const s = sim.current;
     if (s) {
-      advance(s, 1 / 60, latest.current.telemetry.current);
+      advance(s, 1 / 60, latest.current.telemetry.current, latest.current.gravity);
     }
   }, [props.stepNonce]);
 
@@ -151,7 +151,7 @@ export function Viewport(props: ViewportProps) {
       let simDt = 0;
       if (p.playing) {
         simDt = dtReal * p.timeScale;
-        advance(s, simDt, p.telemetry.current);
+        advance(s, simDt, p.telemetry.current, p.gravity);
       }
       let dragLine: DrawArgs['dragLine'];
       const d = drag.current;
@@ -268,10 +268,15 @@ export function Viewport(props: ViewportProps) {
   );
 }
 
-function advance(s: Sim, dt: number, telemetry: Telemetry): void {
+/** Potential energy (J) the scene keeps at rest under the current gravity; 0 when its rest pose is unknown. */
+function restPotential(build: SceneBuild, gravity: number): number {
+  return (build.restHeightMass ?? 0) * gravity;
+}
+
+function advance(s: Sim, dt: number, telemetry: Telemetry, gravity: number): void {
   s.world.step(dt);
   telemetry.simTime += dt;
-  recordSample(telemetry, s.world.getStats());
+  recordSample(telemetry, s.world.getStats(), restPotential(s.build, gravity));
   const trail = s.build.trail;
   if (trail) {
     const ids = s.world.getBodyIds();

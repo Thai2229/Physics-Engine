@@ -1,4 +1,4 @@
-import { defaultBodyDef, defaultRevoluteDef } from '../engine/types';
+import { bodyMass, defaultBodyDef, defaultRevoluteDef } from '../engine/types';
 import type { PhysicsWorld } from '../engine/types';
 import { SceneBuilder } from './types';
 import type { GalleryScene, SceneBuild } from './types';
@@ -14,21 +14,23 @@ function doublePendulum(world: PhysicsWorld): SceneBuild {
   const y1 = pivotY + (L / 2) * Math.sin(a1);
   const jx = L * Math.cos(a1);
   const jy = pivotY + L * Math.sin(a1);
-  const bar1 = b.body(defaultBodyDef({ x: x1, y: y1, angle: a1, shape: { kind: 'box', w: L, h: 0.1 }, collisionGroup: -1, linearDamping: 0.1, angularDamping: 0.05 }));
-  const bar2 = b.body(
-    defaultBodyDef({
-      x: jx + (L / 2) * Math.cos(a2),
-      y: jy + (L / 2) * Math.sin(a2),
-      angle: a2,
-      shape: { kind: 'box', w: L, h: 0.1 },
-      collisionGroup: -1,
-      linearDamping: 0.1,
-      angularDamping: 0.05,
-    }),
-  );
+  const bar1Def = defaultBodyDef({ x: x1, y: y1, angle: a1, shape: { kind: 'box', w: L, h: 0.1 }, collisionGroup: -1, linearDamping: 0.1, angularDamping: 0.05 });
+  const bar1 = b.body(bar1Def);
+  const bar2Def = defaultBodyDef({
+    x: jx + (L / 2) * Math.cos(a2),
+    y: jy + (L / 2) * Math.sin(a2),
+    angle: a2,
+    shape: { kind: 'box', w: L, h: 0.1 },
+    collisionGroup: -1,
+    linearDamping: 0.1,
+    angularDamping: 0.05,
+  });
+  const bar2 = b.body(bar2Def);
   b.revoluteIds.push(world.addRevoluteJoint(defaultRevoluteDef({ bodyA: pin, bodyB: bar1, anchorX: 0, anchorY: pivotY })));
   b.revoluteIds.push(world.addRevoluteJoint(defaultRevoluteDef({ bodyA: bar1, bodyB: bar2, anchorX: jx, anchorY: jy })));
-  return b.finish({ x: 0, y: 1.5, scale: 80 }, { bodyId: bar2, localX: L / 2, localY: 0 });
+  // Both bars hanging straight down from the pivot.
+  const restHeightMass = bodyMass(bar1Def) * (pivotY - L / 2) + bodyMass(bar2Def) * (pivotY - L - L / 2);
+  return b.finish({ x: 0, y: 1.5, scale: 80 }, { bodyId: bar2, localX: L / 2, localY: 0 }, restHeightMass);
 }
 
 function bridge(world: PhysicsWorld): SceneBuild {
@@ -59,6 +61,7 @@ function cradle(world: PhysicsWorld): SceneBuild {
   const len = 3;
   const top = 4.5;
   const bar = b.body(defaultBodyDef({ type: 'static', x: 0, y: top, shape: { kind: 'box', w: n * 2 * r + 1, h: 0.15 } }));
+  let restHeightMass = 0;
   for (let i = 0; i < n; i++) {
     const px = (i - (n - 1) / 2) * 2 * r;
     let x = px;
@@ -68,9 +71,9 @@ function cradle(world: PhysicsWorld): SceneBuild {
       x = px - len * Math.sin(swing);
       y = top - len * Math.cos(swing);
     }
-    const id = b.body(
-      defaultBodyDef({ x, y, shape: { kind: 'circle', radius: r }, restitution: 1, friction: 0, collisionGroup: 0, linearDamping: 0.15 }),
-    );
+    const ballDef = defaultBodyDef({ x, y, shape: { kind: 'circle', radius: r }, restitution: 1, friction: 0, collisionGroup: 0, linearDamping: 0.15 });
+    const id = b.body(ballDef);
+    restHeightMass += bodyMass(ballDef) * (top - len);
     world.addDistanceJoint({
       bodyA: bar,
       bodyB: id,
@@ -84,7 +87,7 @@ function cradle(world: PhysicsWorld): SceneBuild {
       collideConnected: false,
     });
   }
-  return b.finish({ x: 0, y: 2.5, scale: 70 });
+  return b.finish({ x: 0, y: 2.5, scale: 70 }, undefined, restHeightMass);
 }
 
 function stack(world: PhysicsWorld): SceneBuild {
