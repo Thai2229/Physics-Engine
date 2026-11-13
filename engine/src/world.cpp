@@ -1,8 +1,8 @@
 #include <physics/world.hpp>
 
 #include <algorithm>
-#include <cstdlib>
 #include <chrono>
+#include <cmath>
 #include <map>
 #include <memory>
 #include <set>
@@ -155,12 +155,23 @@ bool World::setMouseTarget(JointId id, Vec2 target) {
 
 namespace {
 
+// Non-finite velocities (NaN or infinity) are reset to zero so one bad value cannot persist or spread.
 Vec2 clampLength(Vec2 v, real maxLength) {
+  if (!std::isfinite(v.x) || !std::isfinite(v.y)) {
+    return Vec2(0.0, 0.0);
+  }
   real length = v.length();
   if (length > maxLength && length > 0.0) {
     return (maxLength / length) * v;
   }
   return v;
+}
+
+real clampSpin(real w, real maxSpin) {
+  if (!std::isfinite(w)) {
+    return 0.0;
+  }
+  return clamp(w, -maxSpin, maxSpin);
 }
 
 bool shouldCollide(const Filter& a, const Filter& b) {
@@ -265,7 +276,7 @@ void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
   if (lastDt_ > 0.0) {
     ctx.dtRatio = dt / lastDt_;
   }
-  ctx.warmStarting = warmStarting_ && !getenv("NOWS");
+  ctx.warmStarting = warmStarting_;
   lastDt_ = dt;
 
   // 1. integrate velocities (semi-implicit Euler)
@@ -284,9 +295,12 @@ void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
   });
 
   // 2. constraints: init (+ warm start) and iterate velocities
+  for (Contact& c : contacts_) {
+    c.initVelocityConstraints();
+  }
   joints_.forEach([&](JointId, Joint& j) { j.initVelocityConstraints(ctx); });
   for (Contact& c : contacts_) {
-    c.initVelocityConstraints(ctx);
+    c.warmStart(ctx);
   }
   for (int i = 0; i < velocityIterations; ++i) {
     joints_.forEach([&](JointId, Joint& j) { j.solveVelocityConstraints(ctx); });
@@ -300,7 +314,7 @@ void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
     if (j.type() == JointType::Mouse) {
       RigidBody* held = j.bodyB();
       held->setLinearVelocity(clampLength(held->linearVelocity(), mouseMaxSpeed_));
-      held->setAngularVelocity(clamp(held->angularVelocity(), -mouseMaxSpeed_, mouseMaxSpeed_));
+      held->setAngularVelocity(clampSpin(held->angularVelocity(), mouseMaxSpeed_));
     }
   });
   bodies_.forEach([&](BodyId, RigidBody& b) {
@@ -308,7 +322,7 @@ void World::stepImpl(real dt, int velocityIterations, int positionIterations) {
       return;
     }
     b.setLinearVelocity(clampLength(b.linearVelocity(), maxLinearSpeed_));
-    b.setAngularVelocity(clamp(b.angularVelocity(), -maxAngularSpeed_, maxAngularSpeed_));
+    b.setAngularVelocity(clampSpin(b.angularVelocity(), maxAngularSpeed_));
     b.setCenterAndAngle(b.center() + dt * b.linearVelocity(), b.angle() + dt * b.angularVelocity());
   });
 

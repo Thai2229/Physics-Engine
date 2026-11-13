@@ -56,11 +56,9 @@ function cradle(world: PhysicsWorld): SceneBuild {
   const r = 0.5;
   const len = 3;
   const top = 4.5;
-  // Real cradles leave a hair of space between balls; exactly touching balls make the contact solver inject energy.
-  const gap = 0.02;
   const bar = b.body(defaultBodyDef({ type: 'static', x: 0, y: top, shape: { kind: 'box', w: n * 2 * r + 1, h: 0.15 } }));
   for (let i = 0; i < n; i++) {
-    const px = (i - (n - 1) / 2) * (2 * r + gap);
+    const px = (i - (n - 1) / 2) * 2 * r;
     let x = px;
     let y = top - len;
     if (i === 0) {

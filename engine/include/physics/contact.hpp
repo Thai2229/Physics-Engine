@@ -34,7 +34,9 @@ class Contact {
   /// Evaluates the manifold at the bodies' current transforms.
   WorldManifold worldManifold() const;
 
-  void initVelocityConstraints(const StepContext& ctx);
+  /// Computes effective masses and restitution bias; must run for every contact before any warmStart().
+  void initVelocityConstraints();
+  void warmStart(const StepContext& ctx);
   void solveVelocityConstraints();
   /// Returns the smallest separation seen (negative = penetrating) after pushing the bodies apart.
   real solvePositionConstraints();

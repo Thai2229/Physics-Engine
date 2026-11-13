@@ -23,7 +23,7 @@ WorldManifold Contact::worldManifold() const {
                               transformOf(*bodyB_));
 }
 
-void Contact::initVelocityConstraints(const StepContext& ctx) {
+void Contact::initVelocityConstraints() {
   WorldManifold wm = worldManifold();
   normal_ = wm.normal;
   Vec2 tangent = cross(normal_, 1.0);
@@ -33,7 +33,6 @@ void Contact::initVelocityConstraints(const StepContext& ctx) {
   real iB = bodyB_->invInertia();
 
   for (int i = 0; i < manifold_.pointCount; ++i) {
-    ManifoldPoint& mp = manifold_.points[i];
     Point& p = points_[i];
     p.rA = wm.points[i] - bodyA_->center();
     p.rB = wm.points[i] - bodyB_->center();
@@ -53,13 +52,26 @@ void Contact::initVelocityConstraints(const StepContext& ctx) {
       p.tangentMass = 1.0 / kTangent;
     }
 
-    // Restitution: bounce only when closing faster than the threshold.
+    // Restitution: bounce only when closing faster than the threshold. Measured on the pre-solve velocities
+    // (before any warm start, see warmStart), or an earlier contact's warm start would fake an impact here.
     p.velocityBias = 0;
     real vRel = dot(normal_, bodyB_->velocityAtWorldPoint(wm.points[i]) - bodyA_->velocityAtWorldPoint(wm.points[i]));
     if (vRel < -kVelocityThreshold) {
       p.velocityBias = -restitution_ * vRel;
     }
+  }
+}
 
+void Contact::warmStart(const StepContext& ctx) {
+  Vec2 tangent = cross(normal_, 1.0);
+  real mA = bodyA_->invMass();
+  real mB = bodyB_->invMass();
+  real iA = bodyA_->invInertia();
+  real iB = bodyB_->invInertia();
+
+  for (int i = 0; i < manifold_.pointCount; ++i) {
+    ManifoldPoint& mp = manifold_.points[i];
+    Point& p = points_[i];
     if (ctx.warmStarting) {
       mp.normalImpulse *= ctx.dtRatio;
       mp.tangentImpulse *= ctx.dtRatio;

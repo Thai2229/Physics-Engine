@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <limits>
 
 #include <cmath>
 #include <vector>
@@ -334,4 +335,22 @@ TEST(WorldSpeedLimits, NormalSpeedsAreUntouched) {
   w.addShape(id, f);
   w.step(1.0 / 120.0, 8, 3);
   EXPECT_NEAR(w.body(id)->linearVelocity().x, 3.0, 1e-9);
+}
+
+TEST(WorldSpeedLimits, NonFiniteVelocitiesAreResetInsteadOfSpreading) {
+  World w(Vec2(0, 0));
+  BodyDef def;
+  BodyId id = w.createBody(def);
+  Fixture f;
+  f.shape = Shape::circle(0.5);
+  w.addShape(id, f);
+  const real nan = std::numeric_limits<real>::quiet_NaN();
+  const real inf = std::numeric_limits<real>::infinity();
+  w.setBodyVelocity(id, Vec2(nan, inf), nan);
+  w.step(1.0 / 120.0, 8, 3);
+  EXPECT_TRUE(std::isfinite(w.body(id)->position().x));
+  EXPECT_TRUE(std::isfinite(w.body(id)->position().y));
+  EXPECT_TRUE(std::isfinite(w.body(id)->angle()));
+  EXPECT_NEAR(w.body(id)->linearVelocity().length(), 0.0, 1e-12);
+  EXPECT_NEAR(w.body(id)->angularVelocity(), 0.0, 1e-12);
 }
