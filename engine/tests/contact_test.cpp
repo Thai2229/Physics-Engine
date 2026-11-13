@@ -608,6 +608,9 @@ TEST(Contacts, ManyBodiesStaySane) {
 namespace {
 
 /// Newton's cradle: balls hang from a static bar by rigid rods, neighbours exactly touching.
+// Total energy (J) of the default cradle at its starting pose: 5 balls r=0.5, rods 3 m, ball 0 raised 0.8 rad.
+constexpr real kCradleInitialEnergy = 64.8;
+
 real runCradle(real restitution, real spacing, real seconds, real* finalMaxGain) {
   World w;
   BodyDef barDef;
@@ -664,19 +667,19 @@ real runCradle(real restitution, real spacing, real seconds, real* finalMaxGain)
 TEST(ContactEnergy, NewtonsCradleTouchingBallsDoNotGainEnergyRestitutionOne) {
   real stepGain = 0;
   real gain = runCradle(1.0, 1.0, 12.0, &stepGain);
-  EXPECT_LT(gain, 0.02 * 64.8);
+  EXPECT_LT(gain, 0.02 * kCradleInitialEnergy);
 }
 
 TEST(ContactEnergy, NewtonsCradleTouchingBallsEnergyNonIncreasingRestitutionPointNine) {
   real stepGain = 0;
   real gain = runCradle(0.9, 1.0, 12.0, &stepGain);
-  EXPECT_LT(gain, 0.02 * 64.8);
+  EXPECT_LT(gain, 0.02 * kCradleInitialEnergy);
 }
 
 TEST(ContactEnergy, NewtonsCradleWithGapStaysConserved) {
   real stepGain = 0;
   real gain = runCradle(1.0, 1.01, 12.0, &stepGain);
-  EXPECT_LT(gain, 0.02 * 64.8);
+  EXPECT_LT(gain, 0.02 * kCradleInitialEnergy);
 }
 
 TEST(ContactEnergy, MovingBallHittingTwoTouchingBallsOnFloorDoesNotGainKineticEnergy) {
