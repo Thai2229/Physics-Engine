@@ -70,7 +70,7 @@ class World {
   real kineticEnergy() const;
   real potentialEnergy() const;
 
-  /// Topmost (most recently created) static or dynamic body with a shape containing p; invalid id if none.
+  /// Static or dynamic body (dynamic preferred over static, else last in slot order) with a shape containing p; invalid id if none.
   BodyId queryPoint(Vec2 p) const;
   /// Contact points of the last step (one per manifold point, not per body pair).
   std::size_t contactCount() const;

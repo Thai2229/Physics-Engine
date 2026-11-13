@@ -516,6 +516,14 @@ TEST(QueryPoint, FindsBodiesContainingThePoint) {
   EXPECT_FALSE(w.queryPoint(Vec2(-3.4, 1.4)).isValid());  // inside the ball's AABB, outside the disc
 }
 
+TEST(QueryPoint, PrefersDynamicOverStaticRegardlessOfCreationOrder) {
+  World w;
+  BodyId mover = addBox(w, Vec2(0, 0), 1, 1);
+  BodyId wall = addBox(w, Vec2(0, 0), 1, 1, BodyType::Static);
+  EXPECT_EQ(w.queryPoint(Vec2(0.2, 0.2)), mover);
+  EXPECT_NE(w.queryPoint(Vec2(0.2, 0.2)), wall);
+}
+
 TEST(QueryPoint, RespectsBodyRotationAndStaticBodies) {
   World w;
   BodyId bar = addBox(w, Vec2(0, 0), 2, 0.1, BodyType::Static, 0.3, 0.0, kPi / 2);

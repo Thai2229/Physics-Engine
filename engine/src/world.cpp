@@ -344,6 +344,7 @@ int World::advance(real frameDt) {
 
 BodyId World::queryPoint(Vec2 p) const {
   BodyId found;
+  bool foundDynamic = false;
   bodies_.forEach([&](BodyId id, const RigidBody& b) {
     if (b.type() == BodyType::Kinematic) {
       return;
@@ -362,8 +363,9 @@ BodyId World::queryPoint(Vec2 p) const {
           }
         }
       }
-      if (inside) {
+      if (inside && (!foundDynamic || b.type() == BodyType::Dynamic)) {
         found = id;
+        foundDynamic = b.type() == BodyType::Dynamic;
         return;
       }
     }

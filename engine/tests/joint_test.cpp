@@ -323,6 +323,21 @@ TEST(DistanceJoint, RigidRodKeepsLength) {
   EXPECT_LT(lowest, 3.5);  // it swung down towards y = 3
 }
 
+TEST(DistanceJoint, ZeroLengthMeansInitialAnchorDistance) {
+  World w(Vec2(0, -9.81));
+  BodyId ground = addStatic(w, Vec2(0, 5));
+  BodyId bob = addBob(w, Vec2(2, 5), 0.1);
+  DistanceJointDef def;
+  def.bodyA = ground;
+  def.bodyB = bob;
+  def.anchorA = Vec2(0, 5);
+  def.anchorB = Vec2(2, 5);
+  def.length = 0.0;
+  JointId id = w.createDistanceJoint(def);
+  ASSERT_TRUE(id.isValid());
+  EXPECT_NEAR(w.distanceJoint(id)->length(), 2.0, 1e-12);
+}
+
 TEST(DistanceJoint, ExplicitLengthPullsBodiesToRestLength) {
   World w(Vec2(0, 0));
   BodyId a = addBob(w, Vec2(0, 0), 0.1);

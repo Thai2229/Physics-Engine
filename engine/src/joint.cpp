@@ -288,7 +288,7 @@ DistanceJoint::DistanceJoint(const DistanceJointDef& def, RigidBody* a, RigidBod
       length_(def.length),
       hertz_(def.hertz),
       dampingRatio_(def.dampingRatio) {
-  if (length_ < 0.0) {
+  if (length_ <= 0.0) {
     length_ = distance(def.anchorA, def.anchorB);
   }
 }

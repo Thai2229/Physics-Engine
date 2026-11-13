@@ -116,8 +116,9 @@ export class Renderer {
   private drawBodies(args: DrawArgs): void {
     const { ctx, vp } = this;
     const { world, shapes, camera, overlays, simDt } = args;
-    const states = world.getBodyStates();
-    const ids = world.getBodyIds();
+    // Copy out of WASM memory: a later accessor call can grow memory and detach views.
+    const states = world.getBodyStates().slice();
+    const ids = world.getBodyIds().slice();
     const s = camera.scale;
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = STROKE;
