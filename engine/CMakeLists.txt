@@ -24,7 +24,6 @@ target_compile_features(physics PUBLIC cxx_std_17)
 target_link_libraries(physics PRIVATE physics_warnings)
 
 if(PHYSICS_BUILD_TESTS)
-  enable_testing()
   include(FetchContent)
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)

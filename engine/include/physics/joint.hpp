@@ -10,6 +10,7 @@ enum class JointType { Revolute, Distance, Mouse };
 
 constexpr real kLinearSlop = 0.005;
 constexpr real kAngularSlop = 0.5 * kPi / 180.0;
+constexpr real kPositionTolerance = 1e-5;  ///< position solver stops iterating below this error (m)
 constexpr real kMaxLinearCorrection = 0.2;
 constexpr real kMaxAngularCorrection = 8.0 * kPi / 180.0;
 
@@ -165,6 +166,7 @@ class DistanceJoint : public Joint {
   real impulse_ = 0;
 
   Vec2 u_;
+  real length0_ = 0;  ///< current anchor distance at step start
   Vec2 rA_;
   Vec2 rB_;
   real mA_ = 0;

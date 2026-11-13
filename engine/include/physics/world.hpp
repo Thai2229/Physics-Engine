@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "body.hpp"
@@ -81,7 +82,7 @@ class World {
   const std::vector<std::int32_t>& jointIds() const;
 
  private:
-  JointId addJoint(std::unique_ptr<Joint> joint, RigidBody* a, RigidBody* b);
+  JointId addJoint(std::unique_ptr<Joint> joint);
 
   Vec2 gravity_;
   SlotMap<RigidBody, BodyId> bodies_;

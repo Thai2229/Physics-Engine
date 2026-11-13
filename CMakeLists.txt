@@ -9,4 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(PHYSICS_BUILD_TESTS "Build the GoogleTest suites" ON)
 option(PHYSICS_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
+if(PHYSICS_BUILD_TESTS)
+  enable_testing()
+endif()
+
 add_subdirectory(engine)

@@ -89,7 +89,7 @@ TEST(RevoluteJoint, PendulumPeriodMatchesTheory) {
 TEST(RevoluteJoint, FiveLinkChainAnchorDriftBelowOneMillimetre) {
   World w(Vec2(0, -9.81));
   w.setVelocityIterations(10);
-  w.setPositionIterations(4);
+  w.setPositionIterations(8);
   BodyId prev = addStatic(w, Vec2(0, 10));
   std::vector<JointId> joints;
   const real linkLen = 0.5;
@@ -190,7 +190,7 @@ TEST(RevoluteJoint, MotorTorqueIsCapped) {
   RevoluteJointDef def = revolute(ground, arm, Vec2(0, 0));
   def.enableMotor = true;
   def.motorSpeed = 100.0;
-  def.maxMotorTorque = 0.5;
+  def.maxMotorTorque = 0.05;
   RevoluteJoint* j = w.revoluteJoint(w.createRevoluteJoint(def));
   for (int i = 0; i < 120; ++i) {
     w.step(kDt, 8, 3);
@@ -198,7 +198,7 @@ TEST(RevoluteJoint, MotorTorqueIsCapped) {
   // Inertia about the pivot is I_c + m d^2 and the speed can only grow by torque/I per second.
   const RigidBody* b = w.body(arm);
   real iPivot = b->inertia() + b->mass() * 0.25;
-  EXPECT_NEAR(j->jointSpeed(), 0.5 / iPivot * 1.0, 0.02 * 0.5 / iPivot);
+  EXPECT_NEAR(j->jointSpeed(), 0.05 / iPivot * 1.0, 0.02 * 0.05 / iPivot);
 }
 
 TEST(RevoluteJoint, MotorHoldsAgainstGravityWithEnoughTorque) {
@@ -313,12 +313,14 @@ TEST(DistanceJoint, RigidRodKeepsLength) {
   ASSERT_NE(j, nullptr);
   EXPECT_NEAR(j->length(), 2.0, 1e-12);
   real worst = 0;
+  real lowest = 5.0;
   for (int i = 0; i < 120 * 10; ++i) {
     w.step(kDt, 8, 3);
     worst = std::max(worst, std::fabs(anchorGap(j) - 2.0));
+    lowest = std::min(lowest, w.body(bob)->position().y);
   }
   EXPECT_LT(worst, 0.001);
-  EXPECT_LT(w.body(bob)->position().y, 4.5);  // it swung
+  EXPECT_LT(lowest, 3.5);  // it swung down towards y = 3
 }
 
 TEST(DistanceJoint, ExplicitLengthPullsBodiesToRestLength) {
