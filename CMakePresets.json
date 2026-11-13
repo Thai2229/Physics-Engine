@@ -1,0 +1,39 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "native",
+      "displayName": "Native (tests, warnings as errors)",
+      "binaryDir": "${sourceDir}/build/native",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PHYSICS_BUILD_TESTS": "ON",
+        "PHYSICS_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "wasm",
+      "displayName": "WebAssembly via Emscripten (stub)",
+      "description": "Requires the EMSDK environment variable. To be fleshed out with the embind bindings target.",
+      "binaryDir": "${sourceDir}/build/wasm",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "PHYSICS_BUILD_TESTS": "OFF",
+        "PHYSICS_WARNINGS_AS_ERRORS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "native", "configurePreset": "native" },
+    { "name": "wasm", "configurePreset": "wasm" }
+  ],
+  "testPresets": [
+    {
+      "name": "native",
+      "configurePreset": "native",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}
