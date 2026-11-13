@@ -6,6 +6,7 @@ describe('scene hash', () => {
     const s = defaultState();
     s.tab = 'bridge';
     s.gravity = 3.5;
+    s.handStrength = 2.5;
     s.links[0].motorEnabled = true;
     s.links[0].limitEnabled = true;
     expect(parseState('#' + serializeState(s))).toEqual(s);
@@ -25,11 +26,14 @@ describe('scene hash', () => {
       tab: 'nope',
       gravity: 1e9,
       timeScale: -5,
+      handStrength: 1e9,
       links: [{ length: 100, width: 'x', density: NaN, lowerDeg: 90, upperDeg: -90, motorSpeed: 99, maxTorque: -1, motorEnabled: 'yes' }],
     });
     expect(s.tab).toBe('arm');
     expect(s.gravity).toBe(LIMITS.gravity.max);
     expect(s.timeScale).toBe(LIMITS.timeScale.min);
+    expect(s.handStrength).toBe(LIMITS.handStrength.max);
+    expect(sanitizeState({ handStrength: 'strong' }).handStrength).toBe(1);
     const l = s.links[0];
     expect(l.length).toBe(LIMITS.length.max);
     expect(l.width).toBeGreaterThanOrEqual(LIMITS.width.min);

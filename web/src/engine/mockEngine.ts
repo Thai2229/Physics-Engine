@@ -179,6 +179,9 @@ export class MockEngine implements PhysicsWorld {
     this.gy = y;
   }
 
+  /** The mock has no speed caps, so there is nothing to limit. */
+  setMouseMaxSpeed(): void {}
+
   addBody(def: BodyDef): number {
     const id = this.nextBodyId++;
     const m = massOf(def);

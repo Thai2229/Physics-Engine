@@ -72,6 +72,7 @@ class PhysicsWorld {
   PhysicsWorld() = default;
 
   void setGravity(double x, double y) { world_.setGravity(Vec2(x, y)); }
+  void setMouseMaxSpeed(double speed) { world_.setMouseMaxSpeed(speed); }
 
   int addBody(const val& def) {
     BodyDef bd;
@@ -263,6 +264,7 @@ EMSCRIPTEN_BINDINGS(physics_engine) {
   emscripten::class_<PhysicsWorld>("PhysicsWorld")
       .constructor<>()
       .function("setGravity", &PhysicsWorld::setGravity)
+      .function("setMouseMaxSpeed", &PhysicsWorld::setMouseMaxSpeed)
       .function("addBody", &PhysicsWorld::addBody)
       .function("removeBody", &PhysicsWorld::removeBody)
       .function("setBodyTransform", &PhysicsWorld::setBodyTransform)

@@ -118,6 +118,7 @@ export function Demo() {
           </div>
           <NumberField label="Gravity" unit=" m/s²" value={state.gravity} {...LIMITS.gravity} step={0.1} onChange={(v) => patch({ gravity: v })} />
           <NumberField label="Time scale" unit="x" value={state.timeScale} {...LIMITS.timeScale} step={0.05} onChange={(v) => patch({ timeScale: v })} />
+          <NumberField label="Hand strength" unit="x" value={state.handStrength} {...LIMITS.handStrength} step={0.05} onChange={(v) => patch({ handStrength: v })} />
         </section>
         <section>
           <h3>Debug overlays</h3>
@@ -164,6 +165,7 @@ export function Demo() {
               cameraKey={state.tab}
               gravity={state.gravity}
               timeScale={state.timeScale}
+              handStrength={state.handStrength}
               playing={playing}
               resetNonce={resetNonce}
               stepNonce={stepNonce}
